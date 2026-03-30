@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  document-service:
+    build: .
+    container_name: document-service
+    env_file:
+      - .env
+    ports:
+      - "8004:8004"
+    depends_on:
+      - document-db
+
+  document-db:
+    image: postgres:15
+    container_name: document-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: document_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_document_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+
+volumes:
+  postgres_document_data:
