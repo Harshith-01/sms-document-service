@@ -9,7 +9,7 @@ Features:
 """
 
 from dotenv import load_dotenv
-load_dotenv(override=False)
+load_dotenv()
 
 import os
 from fastapi import FastAPI, Request
@@ -36,8 +36,7 @@ app = FastAPI(
 # ============================================================
 # GLOBAL RATE LIMITER
 # ============================================================
-# Do not require a physical .env file at runtime (Render injects env vars directly).
-limiter = Limiter(key_func=get_remote_address, config_filename=None)
+limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
 app.add_middleware(SlowAPIMiddleware)
