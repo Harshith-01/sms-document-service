@@ -2325,14 +2325,16 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA public;
 
 CREATE TABLE public.documents (
     id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
-    entity_type VARCHAR(50) NOT NULL, -- 'student', 'teacher', 'admin'
+    entity_type VARCHAR(50) NOT NULL, -- 'student', 'teacher', 'staff', 'parent'
     
     -- Explicit Foreign Keys ensuring relational integrity
     student_id VARCHAR(20) REFERENCES public.students(id) ON DELETE CASCADE,
     teacher_id VARCHAR(20) REFERENCES public.teachers(id) ON DELETE CASCADE,
-    admin_id VARCHAR(20) REFERENCES public.admin(id) ON DELETE CASCADE,
+    staff_id VARCHAR(20) REFERENCES public.non_teaching_staff(id) ON DELETE CASCADE,
+    parent_id VARCHAR(20) REFERENCES public.parents(id) ON DELETE CASCADE,
     
     document_type VARCHAR(100) NOT NULL,
+    is_profile_photo BOOLEAN NOT NULL DEFAULT FALSE,
     metadata JSONB DEFAULT '{}',
     file_url TEXT NOT NULL,
     cloudinary_public_id VARCHAR(255) NOT NULL,
@@ -2341,15 +2343,18 @@ CREATE TABLE public.documents (
     verified_at TIMESTAMP WITH TIME ZONE,
     verified_by VARCHAR(50),
     rejection_reason TEXT,
+    deleted_at TIMESTAMP WITH TIME ZONE,
     
     CONSTRAINT chk_document_entity CHECK (
-        (entity_type = 'student' AND student_id IS NOT NULL AND teacher_id IS NULL AND admin_id IS NULL) OR
-        (entity_type = 'teacher' AND teacher_id IS NOT NULL AND student_id IS NULL AND admin_id IS NULL) OR
-        (entity_type = 'admin' AND admin_id IS NOT NULL AND student_id IS NULL AND teacher_id IS NULL)
+        (entity_type = 'student' AND student_id IS NOT NULL AND teacher_id IS NULL AND staff_id IS NULL AND parent_id IS NULL) OR
+        (entity_type = 'teacher' AND teacher_id IS NOT NULL AND student_id IS NULL AND staff_id IS NULL AND parent_id IS NULL) OR
+        (entity_type = 'staff' AND staff_id IS NOT NULL AND student_id IS NULL AND teacher_id IS NULL AND parent_id IS NULL) OR
+        (entity_type = 'parent' AND parent_id IS NOT NULL AND student_id IS NULL AND teacher_id IS NULL AND staff_id IS NULL)
     )
 );
 
 CREATE INDEX idx_documents_student ON public.documents (student_id) WHERE student_id IS NOT NULL;
 CREATE INDEX idx_documents_teacher ON public.documents (teacher_id) WHERE teacher_id IS NOT NULL;
-CREATE INDEX idx_documents_admin ON public.documents (admin_id) WHERE admin_id IS NOT NULL;
+CREATE INDEX idx_documents_staff ON public.documents (staff_id) WHERE staff_id IS NOT NULL;
+CREATE INDEX idx_documents_parent ON public.documents (parent_id) WHERE parent_id IS NOT NULL;
 CREATE INDEX idx_documents_type ON public.documents (document_type);

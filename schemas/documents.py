@@ -8,8 +8,10 @@ class DocumentBase(BaseModel):
     entity_type: EntityTypeEnum
     student_id: Optional[str] = None
     teacher_id: Optional[str] = None
-    admin_id: Optional[str] = None
+    staff_id: Optional[str] = None
+    parent_id: Optional[str] = None
     document_type: str
+    is_profile_photo: bool = False
     metadata_: Optional[Dict[str, Any]] = None
 
 class DocumentResponse(DocumentBase):

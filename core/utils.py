@@ -2,6 +2,9 @@ import cloudinary.uploader
 import cloudinary.api
 from fastapi import UploadFile, HTTPException
 
+# Load Cloudinary credentials from environment before any upload/delete call.
+from core import cloudinary_config  # noqa: F401
+
 def upload_document_to_cloudinary(file: UploadFile, folder: str = "documents"):
     """
     Uploads a file to Cloudinary and returns the URL and public ID.
