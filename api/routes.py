@@ -6,8 +6,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from core.database import get_db
+from core.db_errors import db_integrity_http_exception
 from models.documents import Document, EntityTypeEnum, VerificationStatusEnum
 from schemas.documents import DocumentResponse, DocumentUpdateStatus
 from core.utils import upload_document_to_cloudinary, delete_document_from_cloudinary
@@ -169,16 +171,14 @@ async def upload_document(
 
     try:
         db.commit()
-    except Exception as exc:
+    except IntegrityError as exc:
         db.rollback()
         delete_document_from_cloudinary(upload_result["cloudinary_public_id"])
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Database error. This usually means the {entity_type.value} with ID '{entity_id}' "
-                f"does not exist in the base table. ({str(exc)})"
-            ),
-        )
+        raise db_integrity_http_exception(exc, fallback_status=409, fallback_detail="Failed to store document")
+    except SQLAlchemyError:
+        db.rollback()
+        delete_document_from_cloudinary(upload_result["cloudinary_public_id"])
+        raise HTTPException(status_code=500, detail="Database error while storing document")
 
     db.refresh(new_doc)
     return new_doc
@@ -231,7 +231,14 @@ def delete_document(
         logger.warning("failed_to_delete_cloudinary_asset", exc_info=True)
 
     doc.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise db_integrity_http_exception(exc, fallback_status=409, fallback_detail="Failed to delete document")
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error while deleting document")
     return {"message": "Document deleted successfully"}
 
 @router.patch("/{document_id}/status", response_model=DocumentResponse)
@@ -261,6 +268,13 @@ def update_document_status(
         doc.verified_at = None
         doc.verified_by = None
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise db_integrity_http_exception(exc, fallback_status=409, fallback_detail="Failed to update document status")
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error while updating document status")
     db.refresh(doc)
     return doc

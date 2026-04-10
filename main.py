@@ -13,6 +13,7 @@ load_dotenv()
 
 import os
 from fastapi import FastAPI, Request
+from sqlalchemy.exc import IntegrityError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import JSONResponse
@@ -22,6 +23,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 
 from api.routes import router
+from core.db_errors import db_integrity_http_exception
 from core.security_middleware import (
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware
@@ -48,6 +50,12 @@ app.add_exception_handler(
         content={"detail": "Too many requests. Please try again later."},
     ),
 )
+
+
+@app.exception_handler(IntegrityError)
+async def handle_integrity_error(request: Request, exc: IntegrityError):
+    http_exc = db_integrity_http_exception(exc)
+    return JSONResponse(status_code=http_exc.status_code, content={"detail": http_exc.detail})
 
 # ============================================================
 # SECURITY MIDDLEWARE
